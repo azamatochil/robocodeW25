@@ -279,23 +279,27 @@ public class RobotFileSystemManager {
 
 		InputStream is = null;
 		OutputStream os = null;
-
 		while (entries.hasMoreElements()) {
 			JarEntry jarEntry = (JarEntry) entries.nextElement();
-
 			String filename = jarEntry.getName();
-
-			if (filename.startsWith(dataDir)) {			
+			if (filename.startsWith(dataDir)) {
 				filename = filename.substring(dataDir.length());
 				if (filename.length() == 0) { // Bugfix [2845608] - FileNotFoundException
 					continue;
 				}
-
 				is = null;
 				os = null;
 				try {
 					is = jarFile.getInputStream(jarEntry);
-					os = new FileOutputStream(new File(parent, filename));
+					// Construct the output file safely
+					File outputFile = new File(parent, filename);
+					String canonicalParent = parent.getCanonicalPath();
+					String canonicalOutput = outputFile.getCanonicalPath();
+					// Verify that the output file is within the parent directory
+					if (!canonicalOutput.startsWith(canonicalParent + File.separator)) {
+						throw new IOException("Entry is outside of the target directory: " + filename);
+					}
+					os = new FileOutputStream(outputFile);
 					copyStream(is, os);
 				} finally {
 					FileUtil.cleanupStream(is);
@@ -303,6 +307,7 @@ public class RobotFileSystemManager {
 				}
 			}
 		}
+
 	}
 
 	private void copyStream(InputStream is, OutputStream os) throws IOException {
