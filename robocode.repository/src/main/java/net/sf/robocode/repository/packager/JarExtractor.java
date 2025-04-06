@@ -63,14 +63,30 @@ public class JarExtractor {
 			FileUtil.cleanupStream(is);
 		}
 	}
+	private static String sanitizeFilename(String fileName) {
+		fileName = fileName.replace("../", "_")
+				.replace("./", "_")
+				.replace("/", "_")
+				.replace("\\", "_");
+		fileName = fileName.replaceAll("[^a-zA-Z0-9.-]", "_");
+
+		return fileName;
+	}
 
 	public static void extractFile(File dest, JarInputStream jarIS, JarEntry entry) throws IOException {
-		File out = new File(dest, entry.getName());
+		String fileName = entry.getName();
+		fileName = sanitizeFilename(fileName);
+		File out = new File(dest, fileName);
+		if (!out.getCanonicalPath().startsWith(dest.getCanonicalPath())) {
+			throw new SecurityException("Attempted path traversal attack");
+		}
+
 		File parentDirectory = new File(out.getParent());
 
 		if (!parentDirectory.exists() && !parentDirectory.mkdirs()) {
 			Logger.logError("Cannot create dir: " + parentDirectory);
 		}
+
 		FileOutputStream fos = null;
 		BufferedOutputStream bos = null;
 		byte[] buf = new byte[2048];
@@ -90,3 +106,4 @@ public class JarExtractor {
 		}
 	}
 }
+
