@@ -7,7 +7,6 @@
  */
 package roborumble;
 
-
 import net.sf.robocode.roborumble.battlesengine.BattlesRunner;
 import net.sf.robocode.roborumble.battlesengine.PrepareBattles;
 import net.sf.robocode.roborumble.netengine.BotsDownload;
@@ -16,19 +15,10 @@ import net.sf.robocode.roborumble.netengine.UpdateRatingFiles;
 
 import static net.sf.robocode.roborumble.util.PropertiesUtil.getProperties;
 
-import java.util.Map;
+import java.io.File;
+import java.io.IOException;
 import java.util.Properties;
 
-
-/**
- * Implements the client side of RoboRumble@Home.
- * Controlled by properties files.
- *
- * @author Albert Pérez (original)
- * @author Flemming N. Larsen (contributor)
- * @author Jerome Lavigne (contributor)
- * @author Pavel Savara (contributor)
- */
 public class RoboRumbleAtHome {
 
     public static void main(String[] args) {
@@ -43,6 +33,20 @@ public class RoboRumbleAtHome {
         } else {
             paramsFileName = "./roborumble/roborumble.txt";
             System.out.println("No argument found specifying properties file. \"" + paramsFileName + "\" assumed.");
+        }
+
+        // 🛡️ Sanitize and validate the paramsFileName to prevent path traversal
+        try {
+            File file = new File(paramsFileName).getCanonicalFile();
+            File baseDir = new File(System.getProperty("user.dir")).getCanonicalFile();
+
+            if (!file.getPath().startsWith(baseDir.getPath())) {
+                throw new SecurityException("Access outside allowed directory: " + file);
+            }
+
+            paramsFileName = file.getAbsolutePath();
+        } catch (IOException e) {
+            throw new RuntimeException("Invalid file path", e);
         }
 
         // Read parameters for running the app
@@ -96,12 +100,11 @@ public class RoboRumbleAtHome {
 
             System.out.println("Iteration number " + iterations);
 
-            // Download data from Internet if downloads is YES and it has not been download for 10 minutes
+            // Download data from Internet if downloads is YES and it has not been downloaded for 10 minutes
             if (downloads.equals("YES")) {
                 BotsDownload download = new BotsDownload(game, properties);
 
                 if (runonly.equals("SERVER")) {
-                    // Download rating files and update ratings downloaded
                     ratingsdownloaded = download.downloadRatings();
                 }
                 if ((System.currentTimeMillis() - lastdownload) > 10 * 60 * 1000) {
@@ -109,10 +112,9 @@ public class RoboRumbleAtHome {
                     System.out.println("Downloading missing bots ...");
                     download.downloadMissingBots();
                     download.updateCodeSize();
-                    // Send the order to the server to remove old participants from the ratings file
+
                     if (ratingsdownloaded && participantsdownloaded) {
                         System.out.println("Removing old participants from server ...");
-                        // Send unwanted participants to the server
                         download.notifyServerForOldParticipants();
                     }
 
@@ -120,7 +122,6 @@ public class RoboRumbleAtHome {
                 }
             }
 
-            // Create battles file (and delete old ones), and execute battles
             if (executes.equals("YES")) {
                 final boolean isMelee = melee.equals("YES");
 
@@ -142,11 +143,9 @@ public class RoboRumbleAtHome {
                     }
                 }
 
-                // Disable the -DPRARALLEL and -DRANDOMSEED options
-                System.setProperty("PARALLEL", "false"); // TODO: Remove when robot thread CPU time can be measured
-                System.setProperty("RANDOMSEED", "none"); // In tournaments, robots should not be deterministic!
+                System.setProperty("PARALLEL", "false");
+                System.setProperty("RANDOMSEED", "none");
 
-                // Execute battles
                 if (ready) {
                     if (isMelee) {
                         System.out.println("Executing melee battles ...");
@@ -158,15 +157,12 @@ public class RoboRumbleAtHome {
                 }
             }
 
-            // Upload results
             if (uploads.equals("YES") && version != null) {
                 System.out.println("Uploading results ...");
                 ResultsUpload upload = new ResultsUpload(game, properties, version);
 
-                // Uploads the results to the server
                 upload.uploadResults();
 
-                // Updates the number of battles from the info received from the server
                 System.out.println("Updating number of battles fought ...");
                 UpdateRatingFiles updater = new UpdateRatingFiles(game, properties);
 
@@ -175,8 +171,5 @@ public class RoboRumbleAtHome {
 
             iterations++;
         } while (iterates.equals("YES"));
-
-        // With Java 5 this causes a IllegalThreadStateException, but not in Java 6
-        // System.exit(0);
     }
 }
