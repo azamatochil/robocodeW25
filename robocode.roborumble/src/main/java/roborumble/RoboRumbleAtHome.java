@@ -7,7 +7,6 @@
  */
 package roborumble;
 
-
 import net.sf.robocode.roborumble.battlesengine.BattlesRunner;
 import net.sf.robocode.roborumble.battlesengine.PrepareBattles;
 import net.sf.robocode.roborumble.netengine.BotsDownload;
@@ -16,9 +15,9 @@ import net.sf.robocode.roborumble.netengine.UpdateRatingFiles;
 
 import static net.sf.robocode.roborumble.util.PropertiesUtil.getProperties;
 
-import java.util.Map;
+import java.io.File;
+import java.io.IOException;
 import java.util.Properties;
-
 
 /**
  * Implements the client side of RoboRumble@Home.
@@ -43,6 +42,21 @@ public class RoboRumbleAtHome {
         } else {
             paramsFileName = "./roborumble/roborumble.txt";
             System.out.println("No argument found specifying properties file. \"" + paramsFileName + "\" assumed.");
+        }
+
+        // 🛡️ Fix for CWE-23: Path Traversal
+        // Ensure file path is within the current working directory to prevent unauthorized access
+        try {
+            File file = new File(paramsFileName).getCanonicalFile();
+            File baseDir = new File(System.getProperty("user.dir")).getCanonicalFile();
+
+            if (!file.getPath().startsWith(baseDir.getPath())) {
+                throw new SecurityException("Access outside allowed directory: " + file);
+            }
+
+            paramsFileName = file.getAbsolutePath();
+        } catch (IOException e) {
+            throw new RuntimeException("Invalid file path", e);
         }
 
         // Read parameters for running the app
@@ -96,7 +110,7 @@ public class RoboRumbleAtHome {
 
             System.out.println("Iteration number " + iterations);
 
-            // Download data from Internet if downloads is YES and it has not been download for 10 minutes
+            // Download data from Internet if downloads is YES and it has not been downloaded for 10 minutes
             if (downloads.equals("YES")) {
                 BotsDownload download = new BotsDownload(game, properties);
 
@@ -142,7 +156,7 @@ public class RoboRumbleAtHome {
                     }
                 }
 
-                // Disable the -DPRARALLEL and -DRANDOMSEED options
+                // Disable the -DPARALLEL and -DRANDOMSEED options
                 System.setProperty("PARALLEL", "false"); // TODO: Remove when robot thread CPU time can be measured
                 System.setProperty("RANDOMSEED", "none"); // In tournaments, robots should not be deterministic!
 
