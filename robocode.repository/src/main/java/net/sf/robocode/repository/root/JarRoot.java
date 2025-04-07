@@ -88,11 +88,6 @@ public final class JarRoot extends BaseRoot implements IRepositoryRoot {
 		JarInputStream jarIS = null;
 
 		try {
-			if (!isSafeJarURL(rootURL)) {
-				Logger.logError("Blocked potentially unsafe JAR URL: " + rootURL);
-				return;
-			}
-
 			URLConnection con = URLJarCollector.openConnection(rootURL);
 
 			is = con.getInputStream();
@@ -188,34 +183,5 @@ public final class JarRoot extends BaseRoot implements IRepositoryRoot {
 	public void extractJAR() {
 		JarExtractor.extractJar(rootURL);
 	}
-
-
-	private boolean isSafeJarURL(URL url) {
-		try {
-			// Ensure the protocol is "jar"
-			if (!"jar".equalsIgnoreCase(url.getProtocol())) {
-				return false;
-			}
-
-			String path = url.toString();
-
-			// Prevent URLs that resolve to HTTP, FTP, FILE, etc. inside the JAR part
-			if (path.contains("http:") || path.contains("https:") || path.contains("ftp:") || path.contains("file:")) {
-				return false;
-			}
-
-			// Optionally, restrict it to a known base directory
-			File file = new File(rootPath.getAbsolutePath()).getCanonicalFile();
-			if (!file.exists() || !file.isFile()) {
-				return false;
-			}
-
-			return true;
-		} catch (IOException e) {
-			Logger.logError("URL validation failed: " + e.getMessage());
-			return false;
-		}
-	}
-
 
 }
