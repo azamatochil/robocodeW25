@@ -192,19 +192,17 @@ public final class JarRoot extends BaseRoot implements IRepositoryRoot {
 
 	private boolean isSafeJarURL(URL url) {
 		try {
-			// Ensure the protocol is "jar"
 			if (!"jar".equalsIgnoreCase(url.getProtocol())) {
 				return false;
 			}
 
 			String path = url.toString();
 
-			// Prevent URLs that resolve to HTTP, FTP, FILE, etc. inside the JAR part
+
 			if (path.contains("http:") || path.contains("https:") || path.contains("ftp:") || path.contains("file:")) {
 				return false;
 			}
 
-			// Optionally, restrict it to a known base directory
 			File file = new File(rootPath.getAbsolutePath()).getCanonicalFile();
 			if (!file.exists() || !file.isFile()) {
 				return false;
