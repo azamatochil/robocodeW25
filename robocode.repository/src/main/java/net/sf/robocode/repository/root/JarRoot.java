@@ -88,6 +88,11 @@ public final class JarRoot extends BaseRoot implements IRepositoryRoot {
 		JarInputStream jarIS = null;
 
 		try {
+			if (!isSafeJarURL(rootURL)) {
+				Logger.logError("Blocked potentially unsafe JAR URL: " + rootURL);
+				return;
+			}
+
 			URLConnection con = URLJarCollector.openConnection(rootURL);
 
 			is = con.getInputStream();
@@ -126,7 +131,7 @@ public final class JarRoot extends BaseRoot implements IRepositoryRoot {
 							readJarStream(repositoryItems, "jar:jar" + root + JarJar.SEPARATOR + fullName, inner);
 						} finally {
 							if (inner != null) {
-								inner.closeEntry();								
+								inner.closeEntry();
 							}
 						}
 					} else if (name.endsWith(".class")) {
@@ -149,7 +154,7 @@ public final class JarRoot extends BaseRoot implements IRepositoryRoot {
 
 			if (repositoryItem != null) {
 				if (repositoryItem instanceof RobotItem) {
-					RobotItem robotItem = (RobotItem) repositoryItem; 
+					RobotItem robotItem = (RobotItem) repositoryItem;
 
 					robotItem.setClassPathURL(root);
 				}
@@ -183,5 +188,32 @@ public final class JarRoot extends BaseRoot implements IRepositoryRoot {
 	public void extractJAR() {
 		JarExtractor.extractJar(rootURL);
 	}
+
+
+	private boolean isSafeJarURL(URL url) {
+		try {
+			if (!"jar".equalsIgnoreCase(url.getProtocol())) {
+				return false;
+			}
+
+			String path = url.toString();
+
+
+			if (path.contains("http:") || path.contains("https:") || path.contains("ftp:") || path.contains("file:")) {
+				return false;
+			}
+
+			File file = new File(rootPath.getAbsolutePath()).getCanonicalFile();
+			if (!file.exists() || !file.isFile()) {
+				return false;
+			}
+
+			return true;
+		} catch (IOException e) {
+			Logger.logError("URL validation failed: " + e.getMessage());
+			return false;
+		}
+	}
+
 
 }
